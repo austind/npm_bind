@@ -1,0 +1,9 @@
+{% for rlz in rlz_list %}
+zone "{{ rlz }}" IN {
+    type master;
+    file "{{ rlz }}";
+    allow-update { none; };
+    notify yes;
+};{% endfor %}
+
+

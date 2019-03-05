@@ -1,0 +1,79 @@
+
+
+### SolarWinds
+
+# FQDN of Orion NPM server
+npm_server: orion.example.com
+
+# Orion NPM credentials
+# Leave empty to prompt at runtime
+npm_user: 
+npm_pass: 
+
+# Whether or not to verify the SSL/TLS certificate presented by npm_server
+npm_verify_cert: True
+
+# Manually-defined interfaces
+# Helpful in case you need DNS entries for interfaces that are not
+# managed (or manageable) by NPM.
+# Should be a list of dicts with node_name, iface_name, and iface_addr
+npm_manual_ifaces:
+    - node_name: spine01
+      iface_name: TenGigabitEthernet0/0/2/2
+      iface_addr: 10.255.255.253
+    - node_name: spine02
+      iface_name: TenGigabitEthernet0/0/2/2
+      iface_addr: 10.255.255.254
+
+
+### BIND
+
+# Forward lookup zone domain name
+# All interfaces will receive A and CNAME records in this zone
+flz_name: example.net
+
+# BIND forward lookup zone file name
+flz_file: example.net.zone
+
+# Path to store FLZ & RLZ zone files after creation
+# Defaults to local folder structure.
+# Include trailing slash.
+zone_dir: ./output/var/named/
+
+# BIND configuration directives for reverse lookup zones
+# are automatically generated and added to this file.
+# Add the following to named.conf to include it
+# (without leading comment hash):
+# include "/etc/named.reverse.conf";
+rlz_conf_file: named.reverse.conf
+
+# Path to save rlz_conf_file after creation
+bind_conf_dir: ./output/etc/
+
+
+### Templates
+
+# BIND Config/zone file template dir
+# Include trailing slash.
+template_dir: ./config/templates/
+
+# Jinja2 template within template_dir for flz_file
+flz_template: forward.zone.j2
+
+# Jinja2 template within template_dir for reverse zone files
+rlz_template: reverse.zone.j2
+
+# Jinja2 template within temp_dir for reverse zone BIND config
+rlz_conf_template: named.reverse.conf.j2
+
+# BIND zone file vars
+zone:
+    ns1: ns1.example.com
+    ns2: ns2.example.com
+    hostmaster: hostmaster.example.com # sub "@" with "."
+    ttl: 604800
+    refresh: 86400
+    retry: 900
+    expire: 1209600
+    minimum: 28800
+
