@@ -25,8 +25,8 @@ Required modules:
 ### SolarWinds NPM
 
 npm_bind depends on two custom fields added to NPM:
-1. `IPAddress` interface custom field. This allows for 
-1. `DeviceClass` node custom field.
+1. `IPAddress` interface custom field. This allows for manually-defined interface addresses in cases when the SNMP-queried address is incorrect or nonexistent.
+1. `DeviceClass` node custom field. Helpful in differentiating types of nodes (e.g. network devices vs. servers)
 
 ### Script Config
 
