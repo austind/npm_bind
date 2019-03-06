@@ -25,6 +25,10 @@ npm_manual_ifaces:
       iface_name: TenGigabitEthernet0/0/2/2
       iface_addr: 10.255.255.254
 
+# File containing the SWQL query for all L3 interfaces.
+# See README.md for schema and further details.
+npm_query_file: ./config/query.swql
+
 
 ### BIND
 

@@ -62,89 +62,11 @@ def get_manual_iface(manual_iface):
     return iface_dict
 
 def get_iface_list(swis=swis, manual_ifaces=config['npm_manual_ifaces']):
-    """ Returns list of layer 3 network interfaces in all nodes.
-        Dict schema:
-        - node_id: Network node unique ID
-        - node_uri: Network node SWIS URI
-        - node_name: Network node hostname / caption
-        - node_addr: Network node polling address
-        - node_fqdn: Network node fully-qualified domain name
-        - node_class: Node class as defined in custom properties
-        - iface_id: Interface unique ID
-        - iface_uri: Interface SWIS URI
-        - iface_name: Interface description
-            This includes both the device-given interface identifier
-            as well as any administratively-defined description
-        - iface_addr: IP address of interface
-        - iface_speed: Interface speed in bits per second (bps)
-            Note that NPM does not accurately query this value in all cases.
+    """ Returns list of layer 3 network interfaces in all nodes. """
 
-        TODO: Move query to separate file
+    with open(config['npm_query_file'], "rb") as fh:
+        query = fh.read()
 
-    """
-
-    # Orion NPM can query an interface's IP address via SNMP for many
-    # devices, but certain vendors do not support that (notably: Palo
-    # Alto). For such devices, their managed interfaces in Orion will
-    # show as "Unknown" IP address.
-
-    # To further complicate things, best I can tell, Orion does not
-    # allow us to administratively set an interface's IP address, either
-    # via the web GUI or SWIS.
-
-    # The workaround here is to create an interface custom property called
-    # IPAddress and manually set that in NPM. We then have two fields from which
-    # we may obtain an interface's IP address.
-
-    # If the interface's custom property IPAddress is set, that
-    # takes precedence over an interface's SNMP address.
-
-    # If an interface has neither an administratively-defined nor an SNMP-
-    # queried IP address, it is not included in the result set at all.
-
-    # Returns a list of all managed interfaces known by Orion NPM that
-    # have the DeviceClass custom property set to "Network" and have either 
-    # an SNMP-queried L3 address, or an administratively-set IP address via
-    # an interface custom property called IPAddress.
-
-    query = """
-        SELECT
-            N.NodeID AS node_id,
-            N.URI AS node_uri,
-            N.Caption AS node_name,
-            N.IPAddress AS node_addr,
-            N.SysName AS node_fqdn,
-            N.CustomProperties.DeviceClass AS node_class,
-            I.InterfaceID AS iface_id,
-            I.URI AS iface_uri,
-            I.IfName AS iface_name,
-            CASE
-                WHEN IC.IPAddress <> '' THEN IC.IPAddress
-                ELSE IP.IPAddress
-            END AS iface_addr,
-            I.Speed AS iface_speed
-        FROM
-            Orion.Nodes N
-        RIGHT JOIN
-            Orion.NPM.Interfaces I ON
-                N.NodeID = I.NodeID
-        LEFT JOIN
-            Orion.NodeIPAddresses IP ON (
-                I.NodeID = IP.NodeID
-                AND I.InterfaceIndex = IP.InterfaceIndex
-            )
-        LEFT JOIN
-            Orion.NPM.InterfacesCustomProperties IC ON
-                I.InterfaceID = IC.InterfaceID
-        WHERE (
-               N.CustomProperties.DeviceClass = 'Network'
-            OR N.CustomProperties.DeviceClass = 'Server'
-            )
-            AND (
-               IP.IPAddress <> ''
-            OR IC.IPAddress <> ''
-            )
-    """
     orion_results = swis.query(query)
     results = orion_results['results']
     
