@@ -1,11 +1,21 @@
 #!/usr/bin/env python2.7
 
+# TODO: Support python2 and python3
+
 import getpass
 import jinja2
 import orionsdk
 import requests
 import re
 import yaml
+
+# TODO: Refactor into proper module / classes
+# TODO: Better organize method ordering
+# TODO: Add sample input and output data
+# TODO: Add tests
+# TODO: PEP8 code formatting
+# TODO: Manual reverse record feature
+# TODO: Implement logging
 
 def _read_yaml_file(file_name):
     """ Reads and parses YAML file """
@@ -21,6 +31,7 @@ config = _read_yaml_file("./config/config.yaml")
 if not config['npm_user']:
     curr_user = getpass.getuser()
     config['npm_user'] = raw_input("Orion username [{}]: ".format(curr_user)) or curr_user
+# TODO: Implement secure credential storage
 if not config['npm_pass']:
     config['npm_pass'] = getpass.getpass("Orion password: ")
 if not config['npm_verify_cert']:
@@ -196,6 +207,7 @@ def get_iface_hostname(iface):
     hostname  = iface['node_name'].lower()
     interface = iface['iface_name'].strip().lower()
     speed = get_iface_speed(iface)
+    # TODO: Can we shorten or otherwise simplify this?
     r = r'^(ser|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)\D*([\d\/\-\.:]+)\W*(.*)$'
     m = re.match(r, interface)
     if m:
@@ -283,6 +295,8 @@ def get_hostname_from_fqdn(fqdn):
 
 def get_a_record(iface):
     """ Returns a formatted DNS A record for a given interface dict """
+    # TODO: Move formatting to jinja2 template
+    ptr_format = "{0:<8} {1:<8} {2:<8}."
     iface_addr = iface['iface_addr']
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
@@ -290,6 +304,8 @@ def get_a_record(iface):
 
 def get_cname_record(iface):
     """ Returns a formatted DNS CNAME record for a given interface dict """
+    # TODO: Move formatting to jinja2 template
+    ptr_format = "{0:<8} {1:<8} {2:<8}."
     hostname = iface['node_name']
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
@@ -300,7 +316,9 @@ def get_ptr_record(iface, flz_name=config['flz_name']):
 
         If NPM reports a FQDN in the SysName field (node_fqdn), that
         value is preferred. Otherwise, defaults to flz_name.
+    
     """
+    # TODO: Move formatting to jinja2 template
     ptr_format = "{0:<8} {1:<8} {2:<8}."
     ptr_index = iface['iface_addr'].split('.')[-1]
     reverse_fqdn = ''
@@ -445,7 +463,7 @@ def generate_flz_file(iface_list):
                               config['flz_file'])
     save_template(file_path, render)
 
-def generate_zones(flz_file=config['flz_file']):
+def generate_zones():
     """ Generates all forward and reverse lookup zones """
     # Pull all L3 interfaces from Orion
     iface_list = get_iface_list()
