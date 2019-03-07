@@ -16,6 +16,7 @@ import yaml
 # TODO: PEP8 code formatting
 # TODO: Manual reverse record feature
 # TODO: Implement logging
+# TODO: Refactor to use dynamic DNS and dnspython module
 
 def _read_yaml_file(file_name):
     """ Reads and parses YAML file """
