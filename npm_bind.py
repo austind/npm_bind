@@ -241,8 +241,6 @@ def get_ptr_record(iface, flz_name=config['flz_name']):
         value is preferred. Otherwise, defaults to flz_name.
     
     """
-    # TODO: Move formatting to jinja2 template
-    ptr_format = "{0:<8} {1:<8} {2:<8}."
     ptr_index = iface['iface_addr'].split('.')[-1]
     reverse_fqdn = ''
     if iface['node_class'] == 'Network':
@@ -258,7 +256,12 @@ def get_ptr_record(iface, flz_name=config['flz_name']):
     # Some server nodes in NPM do not have a FQDN in any property,
     # therefore we cannot construct a valid PTR record
     if reverse_fqdn:
-        return ptr_format.format(ptr_index, "PTR", reverse_fqdn)
+        return {
+            'name': ptr_index,
+            'class': 'IN',
+            'type': 'PTR',
+            'rdata': reverse_fqdn
+        }
     else:
         return None
 
@@ -321,9 +324,9 @@ def generate_rlz_file(rlz_records):
     zone = config['zone']
     zone['name'] = rlz_file
     # TODO: Auto-generate serial
-    zone['serial'] = '2019030501'
-    zone['records'] = sorted(list(set([ i['ptr_record'] for i in rlz_records])),
-                      key=lambda r: int(r.split()[0]))
+    zone['serial'] = '2019030801'
+    zone['rrset'] = sorted([ i['ptr_record'] for i in rlz_records],
+                      key=lambda rr: int(rr['name']))
     template = env.get_template(config['rlz_template'])
     render = template.render(zone=zone)
     file_path = "{}{}".format(config['zone_dir'], rlz_file)
