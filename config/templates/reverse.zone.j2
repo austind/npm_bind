@@ -9,6 +9,5 @@ $TTL {{ zone.ttl }}
                     )
                 NS  {{ zone.ns1 }}
                 NS  {{ zone.ns2 }}
-$ORIGIN {{ zone.name }}.{% for record in zone.records %}
-{{ record }}{% endfor %}
-
+$ORIGIN {{ zone.name }}.{% for rr in zone.rrset %}
+{{ rr.name }}		{{ rr.class }}	{{ rr.type }}	{{ rr.rdata }}.{% endfor %}

@@ -1,0 +1,36 @@
+SELECT
+    N.NodeID AS node_id,
+    N.URI AS node_uri,
+    N.Caption AS node_name,
+    N.IPAddress AS node_addr,
+    N.SysName AS node_fqdn,
+    N.CustomProperties.DeviceClass AS node_class,
+    I.InterfaceID AS iface_id,
+    I.URI AS iface_uri,
+    I.IfName AS iface_name,
+    CASE
+        WHEN IC.IPAddress <> '' THEN IC.IPAddress
+        ELSE IP.IPAddress
+    END AS iface_addr,
+    I.Speed AS iface_speed
+FROM
+    Orion.Nodes N
+RIGHT JOIN
+    Orion.NPM.Interfaces I ON
+        N.NodeID = I.NodeID
+LEFT JOIN
+    Orion.NodeIPAddresses IP ON (
+        I.NodeID = IP.NodeID
+        AND I.InterfaceIndex = IP.InterfaceIndex
+    )
+LEFT JOIN
+    Orion.NPM.InterfacesCustomProperties IC ON
+        I.InterfaceID = IC.InterfaceID
+WHERE (
+       N.CustomProperties.DeviceClass = 'Network'
+    OR N.CustomProperties.DeviceClass = 'Server'
+    )
+    AND (
+       IP.IPAddress <> ''
+    OR IC.IPAddress <> ''
+    )
