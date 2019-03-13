@@ -5,10 +5,11 @@
 import re
 import getpass
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-import jinja2
+from jinja2 import Environment, FileSystemLoader
 import orionsdk
 import requests
 import yaml
+
 
 def _read_yaml_file(file_name):
     """ Reads and parses YAML file """
@@ -17,14 +18,15 @@ def _read_yaml_file(file_name):
         parsed_yaml = yaml.load(file_contents)
     return parsed_yaml
 
+
 # Read config
 CONFIG = _read_yaml_file("./config/config.yaml")
 
 # Establish SolarWinds connection
 if not CONFIG['npm_user']:
-    CURR_USER = getpass.getuser()
-    CONFIG['npm_user'] = raw_input("Orion username [{}]: ".format(CURR_USER)) or CURR_USER
-# TODO: Implement secure credential storage
+    USER = getpass.getuser()
+    CONFIG['npm_user'] = raw_input("Orion username [{}]: ".format(USER)) \
+        or USER
 if not CONFIG['npm_pass']:
     CONFIG['npm_pass'] = getpass.getpass("Orion password: ")
 if not CONFIG['npm_verify_cert']:
@@ -33,7 +35,8 @@ SWIS = orionsdk.SwisClient(CONFIG['npm_server'], CONFIG['npm_user'],
                            CONFIG['npm_pass'])
 
 # Initialize jinja2
-ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(CONFIG['template_dir']))
+ENV = Environment(loader=FileSystemLoader(CONFIG['template_dir']))
+
 
 def get_manual_iface(manual_iface):
     """ Returns standardized interface dict based on manual_iface """
@@ -52,6 +55,7 @@ def get_manual_iface(manual_iface):
     }
     iface_dict.update(manual_iface)
     return iface_dict
+
 
 def get_iface_list(swis=SWIS, manual_ifaces=CONFIG['npm_manual_ifaces']):
     """ Returns list of layer 3 network interfaces in all nodes. """
@@ -82,6 +86,7 @@ def get_iface_list(swis=SWIS, manual_ifaces=CONFIG['npm_manual_ifaces']):
         result['iface_name'] = re.sub(pattern, "", result['iface_name'])
     return results
 
+
 def get_iface_speed(iface):
     """ Converts iface speed from bps to DNS-friendly string """
     speed = iface['iface_speed']
@@ -103,6 +108,7 @@ def get_iface_speed(iface):
             i += 1
         return "{}{}".format(prefix, suffixes[i - 1])
 
+
 def get_iface_hostname(iface):
     """ Returns DNS-friendly hostname from an interface dict
         as provided by get_iface_list()
@@ -118,7 +124,8 @@ def get_iface_hostname(iface):
     interface = iface['iface_name'].strip().lower()
     speed = get_iface_speed(iface)
     # TODO: Can we shorten or otherwise simplify this?
-    pattern = r'^(ser|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)\D*([\d\/\-\.:]+)\W*(.*)$'
+    pattern = r'^(ser|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)' \
+              + r'\D*([\d\/\-\.:]+)\W*(.*)$'
     mobj = re.match(pattern, interface)
     if mobj:
         iface_type = mobj.group(1)
@@ -135,6 +142,7 @@ def get_iface_hostname(iface):
         else:
             return "{}-{}-{}".format(hostname, iface_type, iface_num)
 
+
 def get_node_ids(iface_list):
     """ Returns a list of unique node_ids from the master list of
         interface dicts returned by get_iface_list()
@@ -144,9 +152,11 @@ def get_node_ids(iface_list):
     # Casting back as list() for further use
     return list(set([i['node_id'] for i in iface_list]))
 
+
 def get_node_ifaces(node_id, iface_list):
     """ Returns list of interfaces associated with a given node_id """
     return [i for i in iface_list if i['node_id'] == node_id]
+
 
 def get_mgmt_iface(node_id, iface_list):
     """ Returns single interface dict of the node's management interface
@@ -159,20 +169,22 @@ def get_mgmt_iface(node_id, iface_list):
 
     """
     mgmt_iface = None
-    node_ifaces = get_node_ifaces(node_id, iface_list)
-    if len(node_ifaces) == 1:
+    ifaces = get_node_ifaces(node_id, iface_list)
+    if len(ifaces) == 1:
         # If node only has one L3 interface, that's our mgmt int
-        # Without [0] at the end, we get a single-item list instead of a bare dict
-        return node_ifaces[0]
+        # Without [0] at the end, we get a single-item list instead
+        # of a bare dict
+        return ifaces[0]
     else:
         # If node has >1 L3 interface, try to match Orion polling IP
-        mgmt_iface = [i for i in node_ifaces if i['iface_addr'] == i['node_addr']]
+        mgmt_iface = [i for i in ifaces if i['iface_addr'] == i['node_addr']]
         if mgmt_iface:
             return mgmt_iface[0]
         else:
             # If the polling IP does not correlate to any managed interface,
             # just pick the first one (clean up your node in Orion!)
-            return node_ifaces[0]
+            return ifaces[0]
+
 
 def get_domain_from_fqdn(fqdn):
     """ Returns domain name from a fully-qualified domain name
@@ -188,6 +200,7 @@ def get_domain_from_fqdn(fqdn):
     else:
         return None
 
+
 def get_hostname_from_fqdn(fqdn):
     """ Returns hostname from a fully-qualified domain name
         (returns left-most period-delimited value)
@@ -199,6 +212,7 @@ def get_hostname_from_fqdn(fqdn):
         return split.pop()
     else:
         return fqdn
+
 
 def get_a_record(iface):
     """ Returns a formatted DNS A record for a given interface dict """
@@ -212,6 +226,7 @@ def get_a_record(iface):
             'rdata': iface_addr
         }
 
+
 def get_cname_record(iface):
     """ Returns a formatted DNS CNAME record for a given interface dict """
     hostname = iface['node_name']
@@ -223,6 +238,7 @@ def get_cname_record(iface):
             'type': 'CNAME',
             'rdata': iface_hostname
         }
+
 
 def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
     """ Returns a formatted DNS PTR record for a given interface dict
@@ -255,6 +271,7 @@ def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
     else:
         return None
 
+
 def get_iface_rlz(iface):
     """ Returns a string for the reverse lookup zone for an interface
 
@@ -269,10 +286,12 @@ def get_iface_rlz(iface):
     split.reverse()
     return ".".join(split)
 
+
 def save_template(file_path, render):
     """ Writes template output to file (overwrites existing) """
     with open(file_path, "wb") as fh:
         fh.write(render)
+
 
 def get_all_rlz_records(iface_list):
     """ Returns list of reverse lookup zone info for each interface
@@ -295,6 +314,7 @@ def get_all_rlz_records(iface_list):
             rlz_records.append(record)
     return rlz_records
 
+
 def get_rlz_records(rlz, all_rlz_records):
     """ Returns sorted list of all records associated with a
         reverse lookup zone
@@ -303,10 +323,12 @@ def get_rlz_records(rlz, all_rlz_records):
     rlz_records = [i for i in all_rlz_records if i['zone_file'] == rlz]
     return rlz_records
 
+
 def get_rlz_list(all_rlz_records):
     """ Returns list of unique reverse lookup zone files """
     # Casting as set() removes duplicates
     return list(set([i['zone_file'] for i in all_rlz_records]))
+
 
 def generate_rlz_file(rlz_records):
     """ Generates reverse lookup zone file """
@@ -322,6 +344,7 @@ def generate_rlz_file(rlz_records):
     file_path = "{}{}".format(CONFIG['zone_dir'], rlz_file)
     save_template(file_path, render)
 
+
 def generate_rlz_files(iface_list):
     """ Generates and saves reverse lookup zone files """
     all_rlz_records = get_all_rlz_records(iface_list)
@@ -331,6 +354,7 @@ def generate_rlz_files(iface_list):
         rlz_records = get_rlz_records(rlz, all_rlz_records)
         generate_rlz_file(rlz_records)
 
+
 def generate_rlz_config(rlz_list):
     """ Generates BIND config for reverse lookup zones """
     template = ENV.get_template(CONFIG['rlz_conf_template'])
@@ -339,8 +363,9 @@ def generate_rlz_config(rlz_list):
                               CONFIG['rlz_conf_file'])
     save_template(file_path, render)
 
+
 def get_flz_records(iface_list):
-    """ Returns sorted list of forward lookup zone records for each interface """
+    """ Returns list of forward lookup zone records for each interface """
     flz_records = []
 
     # In our use case, only devices belonging to the "Network" class
@@ -366,6 +391,7 @@ def get_flz_records(iface_list):
     # Sort alphabetically, ignoring case
     return sorted(flz_records, key=lambda rr: rr['name'].lower())
 
+
 def generate_flz_file(iface_list):
     """ Generates forward lookup zone file """
     zone = CONFIG['zone']
@@ -379,6 +405,7 @@ def generate_flz_file(iface_list):
                               CONFIG['flz_file'])
     save_template(file_path, render)
 
+
 def generate_zones():
     """ Generates all forward and reverse lookup zones """
     # Pull all L3 interfaces from Orion
@@ -390,6 +417,6 @@ def generate_zones():
     # Reverse lookup zones
     generate_rlz_files(iface_list)
 
+
 if __name__ == "__main__":
     generate_zones()
-
