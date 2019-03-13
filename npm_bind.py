@@ -121,10 +121,6 @@ def get_iface_hostname(iface):
             - iface_name: TenGigabitEthernet1/1
         Example output:
             example-idf1-te-1-1
-        
-        TODO: Might be nice to translate generic Ethernet interfaces
-              into their actual L1 speed on N7K/N9K series, etc. Could be
-              done by adding another property read from NPM.
 
     """
     hostname  = iface['node_name'].lower()
@@ -218,21 +214,27 @@ def get_hostname_from_fqdn(fqdn):
 
 def get_a_record(iface):
     """ Returns a formatted DNS A record for a given interface dict """
-    # TODO: Move formatting to jinja2 template
-    ptr_format = "{0:<8} {1:<8} {2:<8}."
     iface_addr = iface['iface_addr']
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
-        return "{0:<32} {1:<8} {2:<8}".format(iface_hostname, 'A', iface_addr)
+        return {
+            'name': iface_hostname,
+            'class': 'IN',
+            'type': 'A',
+            'rdata': iface_addr
+        }
 
 def get_cname_record(iface):
     """ Returns a formatted DNS CNAME record for a given interface dict """
-    # TODO: Move formatting to jinja2 template
-    ptr_format = "{0:<8} {1:<8} {2:<8}."
     hostname = iface['node_name']
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
-        return "{0:<32} {1:<8} {2:<8}".format(hostname, 'CNAME', iface_hostname)
+        return {
+            'name': hostname,
+            'class': 'IN',
+            'type': 'CNAME',
+            'rdata': iface_hostname
+        }
 
 def get_ptr_record(iface, flz_name=config['flz_name']):
     """ Returns a formatted DNS PTR record for a given interface dict
@@ -246,12 +248,12 @@ def get_ptr_record(iface, flz_name=config['flz_name']):
     if iface['node_class'] == 'Network':
         node_domain = flz_name
         iface_hostname = get_iface_hostname(iface)
-        reverse_fqdn = "{}.{}".format(iface_hostname, node_domain)
+        reverse_fqdn = "{}.{}.".format(iface_hostname, node_domain)
     else:
         node_hostname = get_hostname_from_fqdn(iface['node_fqdn'])
         node_domain = get_domain_from_fqdn(iface['node_fqdn'])
         if node_domain:
-            reverse_fqdn = "{}.{}".format(node_hostname, node_domain)
+            reverse_fqdn = "{}.{}.".format(node_hostname, node_domain)
     
     # Some server nodes in NPM do not have a FQDN in any property,
     # therefore we cannot construct a valid PTR record
@@ -374,7 +376,7 @@ def get_flz_records(iface_list):
             flz_records.append(get_cname_record(mgmt_iface))
     
     # Sort alphabetically, ignoring case
-    return sorted(flz_records, key=lambda s: s.lower())
+    return sorted(flz_records, key=lambda rr: rr['name'].lower())
 
 def generate_flz_file(iface_list):
     """ Generates forward lookup zone file """
@@ -382,7 +384,7 @@ def generate_flz_file(iface_list):
     zone['name'] = config['flz_name']
     # TODO: Auto-generate serial
     zone['serial'] = '2019030501'
-    zone['records'] = get_flz_records(iface_list)
+    zone['rrset'] = get_flz_records(iface_list)
     template = env.get_template(config['flz_template'])
     render = template.render(zone=zone)
     file_path = "{}{}".format(config['zone_dir'],
