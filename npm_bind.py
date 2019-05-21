@@ -2,6 +2,8 @@
 
 """ Reads network interface info from SolarWinds NPM to create DNS entries """
 
+from datetime import datetime
+from itertools import islice
 import re
 import getpass
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -330,13 +332,32 @@ def get_rlz_list(all_rlz_records):
     return list(set([i['zone_file'] for i in all_rlz_records]))
 
 
+def get_zone_serial():
+    """ Generates a serial number for a BIND zone file """
+    now = datetime.now()
+    file_path = "{}{}".format(CONFIG['zone_dir'], CONFIG['flz_file'])
+    index_str = "01"
+    try:
+        with open(file_path) as fh:
+            head = list(islice(fh, 12))
+            for line in head:
+                if 'serial' in line:
+                    serial = line.split()
+                    index = int(serial[0][-2:])
+                    index += 1
+                    index_str = "{:02d}".format(index)
+    except IOError:
+        pass
+
+    return now.strftime("%Y%m%d{}".format(index_str))
+
+
 def generate_rlz_file(rlz_records):
     """ Generates reverse lookup zone file """
     rlz_file = rlz_records[0]['zone_file']
     zone = CONFIG['zone']
     zone['name'] = rlz_file
-    # TODO: Auto-generate serial
-    zone['serial'] = '2019030801'
+    zone['serial'] = get_zone_serial()
     zone['rrset'] = sorted([i['ptr_record'] for i in rlz_records],
                            key=lambda rr: int(rr['name']))
     template = ENV.get_template(CONFIG['rlz_template'])
@@ -396,8 +417,7 @@ def generate_flz_file(iface_list):
     """ Generates forward lookup zone file """
     zone = CONFIG['zone']
     zone['name'] = CONFIG['flz_name']
-    # TODO: Auto-generate serial
-    zone['serial'] = '2019030501'
+    zone['serial'] = get_zone_serial()
     zone['rrset'] = get_flz_records(iface_list)
     template = ENV.get_template(CONFIG['flz_template'])
     render = template.render(zone=zone)
