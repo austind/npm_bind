@@ -124,7 +124,7 @@ def get_iface_hostname(iface):
     interface = iface['iface_name'].strip().lower()
     speed = get_iface_speed(iface)
     # TODO: Can we shorten or otherwise simplify this?
-    pattern = r'^(ser|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)' \
+    pattern = r'^(se|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)' \
               + r'\D*([\d\/\-\.:]+)\W*(.*)$'
     mobj = re.match(pattern, interface)
     if mobj:
