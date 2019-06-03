@@ -40,7 +40,7 @@ SWIS = orionsdk.SwisClient(CONFIG['npm_server'], CONFIG['npm_user'],
 ENV = Environment(loader=FileSystemLoader(CONFIG['template_dir']))
 
 
-def get_manual_iface(manual_iface):
+def get_manual_iface(manual_iface, node_class):
     """ Returns standardized interface dict based on manual_iface """
     iface_dict = {
         'node_id': 'manual',
@@ -48,7 +48,7 @@ def get_manual_iface(manual_iface):
         'node_name': None,
         'node_addr': None,
         'node_fqdn': None,
-        'node_class': 'Network',
+        'node_class': node_class,
         'iface_id': 'manual',
         'iface_uri': None,
         'iface_name': None,
@@ -71,7 +71,7 @@ def get_iface_list(swis=SWIS, manual_ifaces=CONFIG['npm_manual_ifaces']):
     # Add manually-defined interfaces
     if manual_ifaces:
         for manual_iface in manual_ifaces:
-            result = get_manual_iface(manual_iface)
+            result = get_manual_iface(manual_iface, 'Network')
             results.append(result)
 
     # Sanitize results
@@ -214,6 +214,14 @@ def get_hostname_from_fqdn(fqdn):
         return fqdn
 
 
+def get_address(iface):
+    """ Returns an IP address from an iface dict, preferring node_addr """
+    if iface['iface_addr'] is None:
+        return iface['node_addr']
+    else:
+        return iface['iface_addr']
+
+
 def get_a_record(iface):
     """ Returns a formatted DNS A record for a given interface dict """
     iface_addr = iface['iface_addr']
@@ -247,10 +255,8 @@ def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
         value is preferred. Otherwise, defaults to flz_name.
 
     """
-    try:
-        ptr_index = iface['iface_addr'].split('.')[-1]
-    except KeyError:
-        ptr_index = iface['node_addr'].split('.')[-1]
+    addr = get_address(iface)
+    ptr_index = addr.split('.')[-1]
     reverse_fqdn = ''
     if iface['node_class'] == 'Network':
         node_domain = flz_name
@@ -284,11 +290,9 @@ def get_iface_rlz(iface):
             "23.250.10.in-addr.arpa"
 
     """
+    addr = get_address(iface)
     zone_suffix = "in-addr.arpa"
-    try:
-        split = iface['iface_addr'].split(".")
-    except KeyError:
-        split = iface['node_addr'].split(".")
+    split = addr.split('.')
     split.reverse()
     del split[0]
     split.append(zone_suffix)
@@ -320,7 +324,7 @@ def get_all_rlz_records(iface_list):
             }
             rlz_records.append(record)
     for ptr_record in manual_records:
-        ptr_record['node_class'] = ''
+        ptr_record = get_manual_iface(ptr_record, '')
         record = {
                 "zone_file": get_iface_rlz(ptr_record),
                 "ptr_record": get_ptr_record(ptr_record)
