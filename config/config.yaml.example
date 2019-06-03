@@ -54,6 +54,13 @@ rlz_conf_file: named.reverse.conf
 # Path to save rlz_conf_file after creation
 bind_conf_dir: ./output/etc/
 
+# Manually-defined PTR records
+# Add any PTR records needed that don't follow NPM
+# List of dicts with node_fqdn and
+manual_ptr_records:
+    - node_fqdn: mail.example.org
+      node_addr: 10.198.24.3
+
 
 ### Templates
 

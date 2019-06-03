@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-""" Reads network interface info from SolarWinds NPM to create DNS entries """
+""" Reads network interface info from SolarWinds NPM into BIND DNS entries """
 
 from datetime import datetime
 from itertools import islice
@@ -195,9 +195,7 @@ def get_domain_from_fqdn(fqdn):
     """
     if "." in fqdn:
         split = fqdn.split(".")
-        split.reverse()
         del split[0]
-        split.reverse()
         return ".".join(split)
     else:
         return None
@@ -249,7 +247,10 @@ def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
         value is preferred. Otherwise, defaults to flz_name.
 
     """
-    ptr_index = iface['iface_addr'].split('.')[-1]
+    try:
+        ptr_index = iface['iface_addr'].split('.')[-1]
+    except KeyError:
+        ptr_index = iface['node_addr'].split('.')[-1]
     reverse_fqdn = ''
     if iface['node_class'] == 'Network':
         node_domain = flz_name
@@ -280,12 +281,17 @@ def get_iface_rlz(iface):
         Example input:
             - iface_addr = "10.250.23.20"
         Example output:
-            "23.250.10"
+            "23.250.10.in-addr.arpa"
 
     """
-    split = iface['iface_addr'].split(".")
-    del split[0]
+    zone_suffix = "in-addr.arpa"
+    try:
+        split = iface['iface_addr'].split(".")
+    except KeyError:
+        split = iface['node_addr'].split(".")
     split.reverse()
+    del split[0]
+    split.append(zone_suffix)
     return ".".join(split)
 
 
@@ -302,18 +308,25 @@ def get_all_rlz_records(iface_list):
         - ptr_record: fully qualified/formatted PTR record for interface
 
     """
-    zone_suffix = ".in-addr.arpa"
+    manual_records = CONFIG['manual_ptr_records']
     rlz_records = []
     for iface in iface_list:
         iface_ptr_record = get_ptr_record(iface)
         if iface_ptr_record:
             iface_rlz = get_iface_rlz(iface)
-            zone_file = "{}{}".format(iface_rlz, zone_suffix)
             record = {
-                "zone_file": zone_file,
+                "zone_file": iface_rlz,
                 "ptr_record": iface_ptr_record
             }
             rlz_records.append(record)
+    for ptr_record in manual_records:
+        ptr_record['node_class'] = ''
+        record = {
+                "zone_file": get_iface_rlz(ptr_record),
+                "ptr_record": get_ptr_record(ptr_record)
+        }
+        rlz_records.append(record)
+        print record
     return rlz_records
 
 
