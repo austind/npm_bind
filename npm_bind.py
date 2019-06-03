@@ -326,7 +326,6 @@ def get_all_rlz_records(iface_list):
                 "ptr_record": get_ptr_record(ptr_record)
         }
         rlz_records.append(record)
-        print record
     return rlz_records
 
 
