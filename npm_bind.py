@@ -261,11 +261,12 @@ def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
     if iface['node_class'] == 'Network':
         node_domain = flz_name
         iface_hostname = get_iface_hostname(iface)
-        reverse_fqdn = "{}.{}.".format(iface_hostname, node_domain)
+        if iface_hostname:
+            reverse_fqdn = "{}.{}.".format(iface_hostname, node_domain)
     else:
         node_hostname = get_hostname_from_fqdn(iface['node_fqdn'])
         node_domain = get_domain_from_fqdn(iface['node_fqdn'])
-        if node_domain:
+        if node_hostname and node_domain:
             reverse_fqdn = "{}.{}.".format(node_hostname, node_domain)
 
     # Some server nodes in NPM do not have a FQDN in any property,
