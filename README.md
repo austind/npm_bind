@@ -21,6 +21,8 @@ Required modules:
 * [orionsdk](https://github.com/solarwinds/OrionSDK)
 * jinja2
 * yaml
+* requests
+* urllib3
 
 ### SolarWinds NPM
 
