@@ -27,7 +27,7 @@ CONFIG = _read_yaml_file("./config/config.yaml")
 # Establish SolarWinds connection
 if not CONFIG['npm_user']:
     USER = getpass.getuser()
-    CONFIG['npm_user'] = raw_input("Orion username [{}]: ".format(USER)) \
+    CONFIG['npm_user'] = input("Orion username [{}]: ".format(USER)) \
         or USER
 if not CONFIG['npm_pass']:
     CONFIG['npm_pass'] = getpass.getpass("Orion password: ")
