@@ -25,53 +25,51 @@ def _read_yaml_file(file_name):
 CONFIG = _read_yaml_file("./config/config.yaml")
 
 # Establish SolarWinds connection
-if not CONFIG['npm_user']:
+if not CONFIG["npm_user"]:
     USER = getpass.getuser()
-    CONFIG['npm_user'] = input("Orion username [{}]: ".format(USER)) \
-        or USER
-if not CONFIG['npm_pass']:
-    CONFIG['npm_pass'] = getpass.getpass("Orion password: ")
-if not CONFIG['npm_verify_cert']:
+    CONFIG["npm_user"] = input("Orion username [{}]: ".format(USER)) or USER
+if not CONFIG["npm_pass"]:
+    CONFIG["npm_pass"] = getpass.getpass("Orion password: ")
+if not CONFIG["npm_verify_cert"]:
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-SWIS = orionsdk.SwisClient(CONFIG['npm_server'], CONFIG['npm_user'],
-                           CONFIG['npm_pass'])
+SWIS = orionsdk.SwisClient(CONFIG["npm_server"], CONFIG["npm_user"], CONFIG["npm_pass"])
 
 # Initialize jinja2
-ENV = Environment(loader=FileSystemLoader(CONFIG['template_dir']))
+ENV = Environment(loader=FileSystemLoader(CONFIG["template_dir"]))
 
 
 def get_manual_iface(manual_iface, node_class):
     """ Returns standardized interface dict based on manual_iface """
     iface_dict = {
-        'node_id': 'manual',
-        'node_uri': None,
-        'node_name': None,
-        'node_addr': None,
-        'node_fqdn': None,
-        'node_class': node_class,
-        'iface_id': 'manual',
-        'iface_uri': None,
-        'iface_name': None,
-        'iface_addr': None,
-        'iface_speed': None
+        "node_id": "manual",
+        "node_uri": None,
+        "node_name": None,
+        "node_addr": None,
+        "node_fqdn": None,
+        "node_class": node_class,
+        "iface_id": "manual",
+        "iface_uri": None,
+        "iface_name": None,
+        "iface_addr": None,
+        "iface_speed": None,
     }
     iface_dict.update(manual_iface)
     return iface_dict
 
 
-def get_iface_list(swis=SWIS, manual_ifaces=CONFIG['npm_manual_ifaces']):
+def get_iface_list(swis=SWIS, manual_ifaces=CONFIG["npm_manual_ifaces"]):
     """ Returns list of layer 3 network interfaces in all nodes. """
 
-    with open(CONFIG['npm_query_file'], "rb") as fh:
+    with open(CONFIG["npm_query_file"], "r") as fh:
         query = fh.read()
 
     orion_results = swis.query(query)
-    results = orion_results['results']
+    results = orion_results["results"]
 
     # Add manually-defined interfaces
     if manual_ifaces:
         for manual_iface in manual_ifaces:
-            result = get_manual_iface(manual_iface, 'Network')
+            result = get_manual_iface(manual_iface, "Network")
             results.append(result)
 
     # Sanitize results
@@ -79,28 +77,28 @@ def get_iface_list(swis=SWIS, manual_ifaces=CONFIG['npm_manual_ifaces']):
         # Hostnames
         # Replace any non-alphanumeric character with dash
         # (of course, should not happen, but happens :)
-        pattern = r'[^A-Za-z0-9\-]'
-        result['node_name'] = re.sub(pattern, "-", result['node_name'])
+        pattern = r"[^A-Za-z0-9\-]"
+        result["node_name"] = re.sub(pattern, "-", result["node_name"])
 
         # Interface names
         # Remove any whitespace characters from interface name
-        pattern = r'\s+'
-        result['iface_name'] = re.sub(pattern, "", result['iface_name'])
+        pattern = r"\s+"
+        result["iface_name"] = re.sub(pattern, "", result["iface_name"])
     return results
 
 
 def get_iface_speed(iface):
     """ Converts iface speed from bps to DNS-friendly string """
-    speed = iface['iface_speed']
+    speed = iface["iface_speed"]
     if speed:
-        speed = int(iface['iface_speed'])
+        speed = int(iface["iface_speed"])
     else:
         return None
 
     if speed < 1536000:
         return None
     elif speed == 1536000 or speed == 1544000:
-        return 't1'
+        return "t1"
     else:
         prefix = speed
         suffixes = ["k", "m", "g", "t", "p"]
@@ -122,23 +120,25 @@ def get_iface_hostname(iface):
             example-idf1-te-1-1
 
     """
-    hostname = iface['node_name'].lower()
-    interface = iface['iface_name'].strip().lower()
+    hostname = iface["node_name"].lower()
+    interface = iface["iface_name"].strip().lower()
     speed = get_iface_speed(iface)
     # TODO: Can we shorten or otherwise simplify this?
-    pattern = r'^(se|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)' \
-              + r'\D*([\d\/\-\.:]+)\W*(.*)$'
+    pattern = (
+        r"^(se|sc|fa|gi|te|tw|fo|hu|v|eth|lo|br|10|40|mgmt|bo)"
+        + r"\D*([\d\/\-\.:]+)\W*(.*)$"
+    )
     mobj = re.match(pattern, interface)
     if mobj:
         iface_type = mobj.group(1)
         # Brocade's interfaces are indexed with Arabic numerals
         # vs. Cisco's spelled out
         # e.g.: 10GigabitEthernet vs. TenGigabitEthernet
-        if iface_type == '10':
-            iface_type = 'te'
-        if iface_type == '40':
-            iface_type = 'fo'
-        iface_num = re.sub(r'\D', '-', mobj.group(2))
+        if iface_type == "10":
+            iface_type = "te"
+        if iface_type == "40":
+            iface_type = "fo"
+        iface_num = re.sub(r"\D", "-", mobj.group(2))
         if speed:
             return "{}-{}-{}-{}".format(hostname, speed, iface_type, iface_num)
         else:
@@ -152,12 +152,12 @@ def get_node_ids(iface_list):
     """
     # Casting as a set() removes duplicates
     # Casting back as list() for further use
-    return list(set([i['node_id'] for i in iface_list]))
+    return list(set([i["node_id"] for i in iface_list]))
 
 
 def get_node_ifaces(node_id, iface_list):
     """ Returns list of interfaces associated with a given node_id """
-    return [i for i in iface_list if i['node_id'] == node_id]
+    return [i for i in iface_list if i["node_id"] == node_id]
 
 
 def get_mgmt_iface(node_id, iface_list):
@@ -179,7 +179,7 @@ def get_mgmt_iface(node_id, iface_list):
         return ifaces[0]
     else:
         # If node has >1 L3 interface, try to match Orion polling IP
-        mgmt_iface = [i for i in ifaces if i['iface_addr'] == i['node_addr']]
+        mgmt_iface = [i for i in ifaces if i["iface_addr"] == i["node_addr"]]
         if mgmt_iface:
             return mgmt_iface[0]
         else:
@@ -216,39 +216,34 @@ def get_hostname_from_fqdn(fqdn):
 
 def get_address(iface):
     """ Returns an IP address from an iface dict, preferring node_addr """
-    if iface['iface_addr'] is None:
-        return iface['node_addr']
+    if iface["iface_addr"] is None:
+        return iface["node_addr"]
     else:
-        return iface['iface_addr']
+        return iface["iface_addr"]
 
 
 def get_a_record(iface):
     """ Returns a formatted DNS A record for a given interface dict """
-    iface_addr = iface['iface_addr']
+    iface_addr = iface["iface_addr"]
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
-        return {
-            'name': iface_hostname,
-            'class': 'IN',
-            'type': 'A',
-            'rdata': iface_addr
-        }
+        return {"name": iface_hostname, "class": "IN", "type": "A", "rdata": iface_addr}
 
 
 def get_cname_record(iface):
     """ Returns a formatted DNS CNAME record for a given interface dict """
-    hostname = iface['node_name']
+    hostname = iface["node_name"]
     iface_hostname = get_iface_hostname(iface)
     if iface_hostname:
         return {
-            'name': hostname,
-            'class': 'IN',
-            'type': 'CNAME',
-            'rdata': iface_hostname
+            "name": hostname,
+            "class": "IN",
+            "type": "CNAME",
+            "rdata": iface_hostname,
         }
 
 
-def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
+def get_ptr_record(iface, flz_name=CONFIG["flz_name"]):
     """ Returns a formatted DNS PTR record for a given interface dict
 
         If NPM reports a FQDN in the SysName field (node_fqdn), that
@@ -256,28 +251,23 @@ def get_ptr_record(iface, flz_name=CONFIG['flz_name']):
 
     """
     addr = get_address(iface)
-    ptr_index = addr.split('.')[-1]
-    reverse_fqdn = ''
-    if iface['node_class'] == 'Network':
+    ptr_index = addr.split(".")[-1]
+    reverse_fqdn = ""
+    if iface["node_class"] == "Network":
         node_domain = flz_name
         iface_hostname = get_iface_hostname(iface)
         if iface_hostname:
             reverse_fqdn = "{}.{}.".format(iface_hostname, node_domain)
     else:
-        node_hostname = get_hostname_from_fqdn(iface['node_fqdn'])
-        node_domain = get_domain_from_fqdn(iface['node_fqdn'])
+        node_hostname = get_hostname_from_fqdn(iface["node_fqdn"])
+        node_domain = get_domain_from_fqdn(iface["node_fqdn"])
         if node_hostname and node_domain:
             reverse_fqdn = "{}.{}.".format(node_hostname, node_domain)
 
     # Some server nodes in NPM do not have a FQDN in any property,
     # therefore we cannot construct a valid PTR record
     if reverse_fqdn:
-        return {
-            'name': ptr_index,
-            'class': 'IN',
-            'type': 'PTR',
-            'rdata': reverse_fqdn
-        }
+        return {"name": ptr_index, "class": "IN", "type": "PTR", "rdata": reverse_fqdn}
     else:
         return None
 
@@ -293,7 +283,7 @@ def get_iface_rlz(iface):
     """
     addr = get_address(iface)
     zone_suffix = "in-addr.arpa"
-    split = addr.split('.')
+    split = addr.split(".")
     split.reverse()
     del split[0]
     split.append(zone_suffix)
@@ -302,7 +292,7 @@ def get_iface_rlz(iface):
 
 def save_template(file_path, render):
     """ Writes template output to file (overwrites existing) """
-    with open(file_path, "wb") as fh:
+    with open(file_path, "w") as fh:
         fh.write(render)
 
 
@@ -313,22 +303,19 @@ def get_all_rlz_records(iface_list):
         - ptr_record: fully qualified/formatted PTR record for interface
 
     """
-    manual_records = CONFIG['manual_ptr_records']
+    manual_records = CONFIG["manual_ptr_records"]
     rlz_records = []
     for iface in iface_list:
         iface_ptr_record = get_ptr_record(iface)
         if iface_ptr_record:
             iface_rlz = get_iface_rlz(iface)
-            record = {
-                "zone_file": iface_rlz,
-                "ptr_record": iface_ptr_record
-            }
+            record = {"zone_file": iface_rlz, "ptr_record": iface_ptr_record}
             rlz_records.append(record)
     for ptr_record in manual_records:
-        ptr_record = get_manual_iface(ptr_record, '')
+        ptr_record = get_manual_iface(ptr_record, "")
         record = {
-                "zone_file": get_iface_rlz(ptr_record),
-                "ptr_record": get_ptr_record(ptr_record)
+            "zone_file": get_iface_rlz(ptr_record),
+            "ptr_record": get_ptr_record(ptr_record),
         }
         rlz_records.append(record)
     return rlz_records
@@ -339,26 +326,26 @@ def get_rlz_records(rlz, all_rlz_records):
         reverse lookup zone
 
     """
-    rlz_records = [i for i in all_rlz_records if i['zone_file'] == rlz]
+    rlz_records = [i for i in all_rlz_records if i["zone_file"] == rlz]
     return rlz_records
 
 
 def get_rlz_list(all_rlz_records):
     """ Returns list of unique reverse lookup zone files """
     # Casting as set() removes duplicates
-    return list(set([i['zone_file'] for i in all_rlz_records]))
+    return list(set([i["zone_file"] for i in all_rlz_records]))
 
 
 def get_zone_serial():
     """ Generates a serial number for a BIND zone file """
     now = datetime.now()
-    file_path = "{}{}".format(CONFIG['zone_dir'], CONFIG['flz_file'])
+    file_path = "{}{}".format(CONFIG["zone_dir"], CONFIG["flz_file"])
     index_str = "01"
     try:
         with open(file_path) as fh:
             head = list(islice(fh, 12))
             for line in head:
-                if 'serial' in line:
+                if "serial" in line:
                     serial = line.split()
                     index = int(serial[0][-2:])
                     index += 1
@@ -371,15 +358,16 @@ def get_zone_serial():
 
 def generate_rlz_file(rlz_records):
     """ Generates reverse lookup zone file """
-    rlz_file = rlz_records[0]['zone_file']
-    zone = CONFIG['zone']
-    zone['name'] = rlz_file
-    zone['serial'] = get_zone_serial()
-    zone['rrset'] = sorted([i['ptr_record'] for i in rlz_records],
-                           key=lambda rr: int(rr['name']))
-    template = ENV.get_template(CONFIG['rlz_template'])
+    rlz_file = rlz_records[0]["zone_file"]
+    zone = CONFIG["zone"]
+    zone["name"] = rlz_file
+    zone["serial"] = get_zone_serial()
+    zone["rrset"] = sorted(
+        [i["ptr_record"] for i in rlz_records], key=lambda rr: int(rr["name"])
+    )
+    template = ENV.get_template(CONFIG["rlz_template"])
     render = template.render(zone=zone)
-    file_path = "{}{}".format(CONFIG['zone_dir'], rlz_file)
+    file_path = "{}{}".format(CONFIG["zone_dir"], rlz_file)
     save_template(file_path, render)
 
 
@@ -395,10 +383,9 @@ def generate_rlz_files(iface_list):
 
 def generate_rlz_config(rlz_list):
     """ Generates BIND config for reverse lookup zones """
-    template = ENV.get_template(CONFIG['rlz_conf_template'])
+    template = ENV.get_template(CONFIG["rlz_conf_template"])
     render = template.render(rlz_list=rlz_list)
-    file_path = "{}{}".format(CONFIG['bind_conf_dir'],
-                              CONFIG['rlz_conf_file'])
+    file_path = "{}{}".format(CONFIG["bind_conf_dir"], CONFIG["rlz_conf_file"])
     save_template(file_path, render)
 
 
@@ -410,7 +397,7 @@ def get_flz_records(iface_list):
     # get forward lookup entries. Devices belonging to the "Server"
     # class only get reverse entries, hence why I'm sifting out servers
     # here.
-    iface_list = [i for i in iface_list if i['node_class'] == 'Network']
+    iface_list = [i for i in iface_list if i["node_class"] == "Network"]
     node_list = get_node_ids(iface_list)
     for node_id in node_list:
         # Generate A records for each interface
@@ -427,19 +414,18 @@ def get_flz_records(iface_list):
             flz_records.append(get_cname_record(mgmt_iface))
 
     # Sort alphabetically, ignoring case
-    return sorted(flz_records, key=lambda rr: rr['name'].lower())
+    return sorted(flz_records, key=lambda rr: rr["name"].lower())
 
 
 def generate_flz_file(iface_list):
     """ Generates forward lookup zone file """
-    zone = CONFIG['zone']
-    zone['name'] = CONFIG['flz_name']
-    zone['serial'] = get_zone_serial()
-    zone['rrset'] = get_flz_records(iface_list)
-    template = ENV.get_template(CONFIG['flz_template'])
+    zone = CONFIG["zone"]
+    zone["name"] = CONFIG["flz_name"]
+    zone["serial"] = get_zone_serial()
+    zone["rrset"] = get_flz_records(iface_list)
+    template = ENV.get_template(CONFIG["flz_template"])
     render = template.render(zone=zone)
-    file_path = "{}{}".format(CONFIG['zone_dir'],
-                              CONFIG['flz_file'])
+    file_path = "{}{}".format(CONFIG["zone_dir"], CONFIG["flz_file"])
     save_template(file_path, render)
 
 
