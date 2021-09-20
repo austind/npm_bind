@@ -17,7 +17,7 @@ def _read_yaml_file(file_name):
     """ Reads and parses YAML file """
     with open(file_name, "r") as fh:
         file_contents = fh.read()
-        parsed_yaml = yaml.load(file_contents)
+        parsed_yaml = yaml.safe_load(file_contents)
     return parsed_yaml
 
 
