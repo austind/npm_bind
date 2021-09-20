@@ -106,7 +106,7 @@ def get_iface_speed(iface):
         while prefix > 100:
             prefix = prefix / 1000
             i += 1
-        return "{}{}".format(prefix, suffixes[i - 1])
+        return int("{}{}".format(prefix, suffixes[i - 1]))
 
 
 def get_iface_hostname(iface):
